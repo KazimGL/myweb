@@ -2,124 +2,176 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>User Form</title>
+  <title>User Registration</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+  <!-- MQTT -->
+  <script src="https://unpkg.com/mqtt/dist/mqtt.min.js"></script>
+
+  <!-- Clean formal fonts -->
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Serif:wght@400;500&family=Inter:wght@300;400&display=swap" rel="stylesheet">
 
   <style>
     body {
-      font-family: Arial, sans-serif;
-      background: #121212;
-      color: #ffffff;
+      margin: 0;
+      height: 100vh;
+      background: #f7f3f5; /* soft sakura tone */
       display: flex;
       justify-content: center;
       align-items: center;
-      height: 100vh;
+      font-family: 'Inter', sans-serif;
+      color: #333;
     }
 
-    form {
-      background: #1e1e1e;
-      padding: 20px;
+    .card {
+      width: 380px;
+      padding: 34px;
+      background: #ffffff;
       border-radius: 10px;
-      width: 300px;
+      border: 1px solid #e4d7dd;
+      box-shadow: 0 6px 18px rgba(0,0,0,0.06);
     }
 
     h2 {
+      font-family: 'Noto Serif', serif;
       text-align: center;
+      font-weight: 500;
+      letter-spacing: 1px;
+      margin-bottom: 10px;
+    }
+
+    .subtitle {
+      text-align: center;
+      font-size: 12px;
+      color: #8a6f7c;
+      margin-bottom: 28px;
     }
 
     label {
+      font-size: 12px;
+      color: #6f5a63;
+      margin-top: 18px;
       display: block;
-      margin-top: 10px;
+      letter-spacing: 0.4px;
     }
 
-    input, select, button {
+    input, select {
       width: 100%;
-      padding: 8px;
-      margin-top: 5px;
+      padding: 10px;
+      margin-top: 6px;
       border-radius: 5px;
-      border: none;
+      border: 1px solid #d8c6cd;
+      background: #fff;
+      font-size: 14px;
+    }
+
+    input:focus, select:focus {
+      outline: none;
+      border-color: #c48aa0;
     }
 
     button {
-      background: #00c853;
-      color: black;
-      font-weight: bold;
-      margin-top: 15px;
+      width: 100%;
+      margin-top: 30px;
+      padding: 12px;
+      border-radius: 6px;
+      border: none;
+      background: #c48aa0; /* sakura pink */
+      color: #fff;
+      font-size: 13px;
+      letter-spacing: 1px;
       cursor: pointer;
+      transition: 0.3s;
     }
 
     button:hover {
-      background: #00e676;
+      background: #b4778d;
     }
 
     #msg {
-      margin-top: 10px;
       text-align: center;
+      margin-top: 18px;
+      font-size: 12px;
+      color: #6f5a63;
+    }
+
+    .footer {
+      margin-top: 20px;
+      text-align: center;
+      font-size: 11px;
+      color: #b09aa4;
     }
   </style>
 </head>
 
 <body>
 
-<form id="userForm">
-  <h2>User Form</h2>
+  <div class="card">
+    <h2>User Registration</h2>
+    <div class="subtitle">Soft · Formal · Live System</div>
 
-  <label>First Name</label>
-  <input type="text" id="fname" required>
+    <form id="userForm">
+      <label>First Name</label>
+      <input id="fname" required>
 
-  <label>Last Name</label>
-  <input type="text" id="lname" required>
+      <label>Last Name</label>
+      <input id="lname" required>
 
-  <label>Gender</label>
-  <select id="gender" required>
-    <option value="">Select</option>
-    <option>Male</option>
-    <option>Female</option>
-    <option>Other</option>
-  </select>
+      <label>Gender</label>
+      <select id="gender" required>
+        <option value="">Select</option>
+        <option>Male</option>
+        <option>Female</option>
+        <option>Other</option>
+      </select>
 
-  <label>Email</label>
-  <input type="email" id="email" required>
+      <label>Email</label>
+      <input id="email" type="email" required>
 
-  <button type="submit">Submit</button>
+      <button type="submit">Submit</button>
+      <div id="msg"></div>
+    </form>
 
-  <div id="msg"></div>
-</form>
+    <div class="footer">Bomboclaaat System · Live Display</div>
+  </div>
 
 <script>
+  /* ===== HTTP (STORAGE) ===== */
   const apiURL = "https://6960d11be7aa517cb7973055.mockapi.io/TFT/data/users1";
+
+  /* ===== MQTT (LIVE TRIGGER) ===== */
+  const mqttClient = mqtt.connect("wss://broker.hivemq.com:8884/mqtt");
+  const mqttTopic = "tft/users/notify";
 
   document.getElementById("userForm").addEventListener("submit", function(e) {
     e.preventDefault();
 
     const data = {
-      fname: document.getElementById("fname").value,
-      lname: document.getElementById("lname").value,
-      gender: document.getElementById("gender").value,
-      email: document.getElementById("email").value
+      fname: fname.value,
+      lname: lname.value,
+      gender: gender.value,
+      email: email.value
     };
 
     fetch(apiURL, {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json"
-      },
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify(data)
     })
     .then(res => {
-      if (res.ok) return res.json();
-      throw new Error("Failed to submit");
+      if (!res.ok) throw new Error();
+      return res.json();
     })
     .then(() => {
-      document.getElementById("msg").innerHTML = "✅ Submitted Successfully";
-      document.getElementById("userForm").reset();
+      mqttClient.publish(mqttTopic, "update");
+      msg.innerHTML = "✔ Submitted successfully";
+      userForm.reset();
     })
     .catch(() => {
-      document.getElementById("msg").innerHTML = "❌ Error submitting data";
+      msg.innerHTML = "✖ Submission failed";
     });
   });
 </script>
 
 </body>
 </html>
-
